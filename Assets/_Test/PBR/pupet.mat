@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: pupet
+  m_Shader: {fileID: 4800000, guid: 85ed9ba4968921845a9b5a0444ba9bb9, type: 3}
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _ADDITIONALLIGHTS
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseColor:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DiffuseTex:
+        m_Texture: {fileID: 2800000, guid: b17004c6a9f50fe46a63b6509550f666, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EmissionTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskTex:
+        m_Texture: {fileID: 2800000, guid: 59cf27d42e4534a4e971bbc27b628969, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalTex:
+        m_Texture: {fileID: 2800000, guid: f7924bde7a6cdab4d9d5b07190523017, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AO: 1
+    - _AddLights: 1
+    - _EmissionInt: 1
+    - _EmissionSpeed: 1
+    - _EmissionWave: 1
+    - _EmissivInt: 1
+    - _LightInt: 0.3
+    - _Metallic: 0
+    - _NormalInvertG: 0
+    - _NormalScale: 1
+    - _Roughness: 1
+    - _RoughnessInvert: 0
+    - _ToggleAnimate: 0
+    - _ToggleEmission: 0
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionCol: {r: 0, g: 0, b: 0, a: 1}
+    - _EmissivColor: {r: 0, g: 0, b: 0, a: 1}
+  m_BuildTextureStacks: []
