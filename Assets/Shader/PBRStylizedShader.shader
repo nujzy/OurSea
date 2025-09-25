@@ -35,7 +35,7 @@ Shader "Unlit/PBR2"
         TEXTURE2D(_NormalTex);      SAMPLER(sampler_NormalTex);
         TEXTURE2D(_MRTex);          SAMPLER(sampler_MRTex);
         
-        struct appdata
+        struct Attribute
         {
             float4 positionOS : POSITION;
             float3 normalOS : NORMAL;
@@ -43,7 +43,7 @@ Shader "Unlit/PBR2"
             float4 tangentOS : TANGENT;
         };
 
-        struct v2f
+        struct Varying
         {
             float4 positionCS : SV_POSITION;
             float2 uv : TEXCOORD0;
@@ -57,6 +57,7 @@ Shader "Unlit/PBR2"
 
         Pass
         {
+            
         Tags
         {
             "LightMode" = "UniversalForward"
@@ -67,9 +68,9 @@ Shader "Unlit/PBR2"
         #pragma vertex vert
         #pragma fragment frag
 
-        v2f vert(appdata v)
+        Varying vert(Attribute v)
         {
-            v2f o;
+            Varying o = (Varying)0;
             
             o.uv = TRANSFORM_TEX(v.texcoord,_DiffuseTex);
             VertexPositionInputs positonInput = GetVertexPositionInputs(v.positionOS);
@@ -87,15 +88,29 @@ Shader "Unlit/PBR2"
             return o;
         }
 
-        half4 frag(v2f i) : SV_Target
+        //法线分布函数
+        /*
+         *
+         *
+         */
+        float Distribution(float roughness ,float nh)
+        {
+            //float lerpSquareRoughness = pow(roughness,2); 和下面的公式类似，但我们通过lerp函数进行了一个微小的重映射，保证roughness不为0
+            float lerpSquareRoughness = pow(lerp(0.01,1,roughness),2);
+            
+            float D = lerpSquareRoughness / (pow((pow(nh,2) * (lerpSquareRoughness - 1) + 1),2) * PI);
+            return D;
+        }
+
+        half4 frag(Varying i) : SV_Target
         {
             half4 albedo = SAMPLE_TEXTURE2D(_DiffuseTex,sampler_DiffuseTex,i.uv);
             half4 normal = SAMPLE_TEXTURE2D(_NormalTex,sampler_NormalTex,i.uv);
             half4 metalRough = SAMPLE_TEXTURE2D(_MRTex,sampler_MRTex,i.uv);
-
+            
             float3x3 tbn = {i.tangetWS,i.bitTangetWS,i.normalWS};
-            float3 normalTS = UnpackNormalScale(normal,_NormalScale);
-            half3 N = NormalizeNormalPerPixel(mul(normalTS,tbn));
+            float3 normalTS = UnpackNormalScale(normal,_NormalScale);   //法线数据 颜色空间 > 切线空间 并进行NormalScale变换
+            half3 N = NormalizeNormalPerPixel(mul(normalTS,tbn));       //法线 切线空间 > 世界空间 转换
             
             return float4(N,1);
         }
