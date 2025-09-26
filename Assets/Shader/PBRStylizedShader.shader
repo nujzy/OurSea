@@ -1,4 +1,4 @@
-Shader "Unlit/PBR2"
+Shader "Unlit/PBRStylized"
 {
     Properties
     {
@@ -89,17 +89,22 @@ Shader "Unlit/PBR2"
         }
 
         //法线分布函数
-        /*
-         *
-         *
-         */
         float Distribution(float roughness ,float nh)
         {
             //float lerpSquareRoughness = pow(roughness,2); 和下面的公式类似，但我们通过lerp函数进行了一个微小的重映射，保证roughness不为0
             float lerpSquareRoughness = pow(lerp(0.01,1,roughness),2);
-            
             float D = lerpSquareRoughness / (pow((pow(nh,2) * (lerpSquareRoughness - 1) + 1),2) * PI);
             return D;
+        }
+
+        //几何遮蔽函数
+        float Geometry(float roughness ,float nl,float nv)
+        {
+            float k = pow(roughness + 1,2) / 8;
+            float G1 = nl / lerp(nl,1,k);
+            float G2 = nv / lerp(nv,1,k);
+            float G = G1 * G2;
+            return G;
         }
 
         half4 frag(Varying i) : SV_Target
@@ -111,8 +116,25 @@ Shader "Unlit/PBR2"
             float3x3 tbn = {i.tangetWS,i.bitTangetWS,i.normalWS};
             float3 normalTS = UnpackNormalScale(normal,_NormalScale);   //法线数据 颜色空间 > 切线空间 并进行NormalScale变换
             half3 N = NormalizeNormalPerPixel(mul(normalTS,tbn));       //法线 切线空间 > 世界空间 转换
+
+            Light mainLight = GetMainLight();
+            half4 lightColor = float4(mainLight.color,1);
+            float3 viewDir = normalize(i.viewDirWS);
+            float3 normalDir = normalize(N);
+            float3 lightDir = mainLight.direction;
+            float3 halfDir = normalize(lightDir + viewDir);
+
+            half matellic = _Metallic * metalRough.a;
+            half roughness = pow((1-_Roughness),2) * metalRough.r;
+
+            float nh = max(saturate(dot(normalDir,halfDir)),0.001);
+            float nl = max(saturate(dot(normalDir,lightDir)),0.001);
+            float nv = max(saturate(dot(normalDir,viewDir)),0.001);
+
+            half D = Distribution(roughness,nh);
+            half G = Geometry(roughness,nl,nv);
             
-            return float4(N,1);
+            return G;
         }
 
             
