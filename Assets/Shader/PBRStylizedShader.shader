@@ -156,8 +156,7 @@ Shader "Unlit/PBRStylized"
             
             return float4(DirectDiffColor + DirectSpeColr,1);
         }
-
-            
+        
         ENDHLSL
         }
         
