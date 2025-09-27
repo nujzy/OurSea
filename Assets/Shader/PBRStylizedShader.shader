@@ -89,11 +89,11 @@ Shader "Unlit/PBRStylized"
         }
 
         //法线分布函数
-        float Distribution(float roughness ,float nh)
+        float Distribution(float roughness ,float normalDir,float halfDir)
         {
             //float lerpSquareRoughness = pow(roughness,2); 和下面的公式类似，但我们通过lerp函数进行了一个微小的重映射，保证roughness不为0
             float lerpSquareRoughness = pow(lerp(0.01,1,roughness),2);
-            float D = lerpSquareRoughness / (pow(pow(nh,2) * (lerpSquareRoughness - 1) + 1,2) * PI);
+            float D = lerpSquareRoughness / (pow(pow(dot(normalDir,halfDir),2) * (lerpSquareRoughness - 1) + 1,2) * PI);
             return D;
         }
 
@@ -104,13 +104,25 @@ Shader "Unlit/PBRStylized"
             return f;
         }
 
-        //几何遮蔽函数
-        float Geometry(float roughness ,float nl,float nv)
+        //几何遮蔽子项
+        float G_sub(float3 normalDir,float3 anotherDir,float k)
         {
+            float dotProduct = dot(normalDir,anotherDir);
+            dotProduct = max(dotProduct,0);
+            return dotProduct/lerp(dotProduct,1,k);
+        }
+
+        //几何遮蔽函数
+        float Geometry(float roughness ,float3 normalDir,float3 viewDir,float3 lightDir)
+        {
+            //例子里使用直接光照
             float k = pow(roughness + 1,2) / 8;
-            float G1 = nl / lerp(nl,1,k);
-            float G2 = nv / lerp(nv,1,k);
+
+            float G1 = G_sub(normalDir,viewDir,k);
+            float G2 = G_sub(normalDir,lightDir,k);
+
             float G = G1 * G2;
+            
             return G;
         }
 
@@ -132,15 +144,14 @@ Shader "Unlit/PBRStylized"
             float3 halfDir = normalize(lightDir + viewDir);
 
             half metallic = _Metallic * metalRough.a;
-            half roughness = pow((1-_Roughness),2) * metalRough.r;
-
-            float nh = max(saturate(dot(normalDir,halfDir)) ,0.001);
+            half roughness = pow(1 - _Roughness,2) ;//* metalRough.r;
+            
             float nl = max(saturate(dot(normalDir,lightDir)),0.001);
             float nv = max(saturate(dot(normalDir,viewDir)) ,0.001);
             float hl = max(saturate(dot(halfDir,lightDir))  ,0.001);
 
-            half D = Distribution(roughness,nh);
-            half G = Geometry(roughness,nl,nv);
+            half D = Distribution(roughness,normalDir,halfDir);
+            half G = Geometry(roughness,normalDir,viewDir,lightDir);
             half3 F0 = lerp(0.04,albedo.rgb, metallic);
             half3 F = FresnelEquation(F0,hl);
 
@@ -154,7 +165,7 @@ Shader "Unlit/PBRStylized"
             half3 DirectDiffColor = kd * albedo * nl * lightColor;
             
             
-            return float4(DirectDiffColor + DirectSpeColr,1);
+            return G;
         }
         
         ENDHLSL
