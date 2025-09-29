@@ -98,9 +98,10 @@ Shader "Unlit/PBRStylized"
         }
 
         //菲涅耳函数
-        float3 FresnelEquation(float3 f0,float lh)
+        float3 FresnelEquation(float3 f0,float lightDir ,float halfDir)
         {
-            float3 f = f0 + (1-f0) * pow(1 - lh,5);
+            float LDotH = max(0,dot(lightDir,halfDir));
+            float3 f = f0 + (1-f0) * pow(1 - LDotH,5);
             return f;
         }
 
@@ -153,9 +154,10 @@ Shader "Unlit/PBRStylized"
             half D = Distribution(roughness,normalDir,halfDir);
             half G = Geometry(roughness,normalDir,viewDir,lightDir);
             half3 F0 = lerp(0.04,albedo.rgb, metallic);
-            half3 F = FresnelEquation(F0,hl);
+            half3 F = FresnelEquation(F0,lightDir,halfDir);
 
             half3 SpecularResult = D*G*F/(nv * nl * 4);
+            
 
             
             half3 DirectSpeColr = saturate(SpecularResult * nl * PI);
