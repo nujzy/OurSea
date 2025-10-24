@@ -24,6 +24,7 @@ Shader "Unlit/PBRStylized"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+        #include "Assets/_Test/PBR/PbrData.hlsl"
 
         CBUFFER_START(UnityPerMaterial)
             float4 _DiffuseTex_ST;  float4 _DiffuseColor;
@@ -89,20 +90,21 @@ Shader "Unlit/PBRStylized"
         }
 
         //法线分布函数
-        float Distribution(float roughness ,float normalDir,float halfDir)
+        float Distribution(float roughness ,float3 normalDir,float3 halfDir)
         {
-            //float lerpSquareRoughness = pow(roughness,2); 和下面的公式类似，但我们通过lerp函数进行了一个微小的重映射，保证roughness不为0
+            float NdotH = max(saturate(dot(normalDir,halfDir)),0.01);
+            
             float lerpSquareRoughness = pow(lerp(0.01,1,roughness),2);
-            float D = lerpSquareRoughness / (pow(pow(dot(normalDir,halfDir),2) * (lerpSquareRoughness - 1) + 1,2) * PI);
+            float D = lerpSquareRoughness / (pow(pow(NdotH,2) * (lerpSquareRoughness - 1) + 1, 2) * PI);
             return D;
         }
 
         //菲涅耳函数
-        float3 FresnelEquation(float3 f0,float lightDir ,float halfDir)
+        float3 FresnelEquation(float3 f0,float3 lightDir ,float3 halfDir)
         {
-            float LDotH = max(0,dot(lightDir,halfDir));
-            float3 f = f0 + (1-f0) * pow(1 - LDotH,5);
-            return f;
+            float hl = max(saturate(dot(halfDir, lightDir)), 0.0001);
+            float3 F = f0 + (1 - f0) * exp2((-5.55473 * hl - 6.98316) * hl);
+            return F;
         }
 
         //几何遮蔽子项
@@ -116,8 +118,15 @@ Shader "Unlit/PBRStylized"
         //几何遮蔽函数
         float Geometry(float roughness ,float3 normalDir,float3 viewDir,float3 lightDir)
         {
+            //直接光
+            //half k = pow(roughness + 1,2) / 8.0;
+            //间接光
+            //const float d = 1.0 / 8.0;
+            //half k = pow(roughness,2) / d;
+            
             //例子里使用直接光照
-            float k = pow(roughness + 1,2) / 8;
+            //question
+            float k = pow(roughness + 1 ,2) / 8;
 
             float G1 = G_sub(normalDir,viewDir,k);
             float G2 = G_sub(normalDir,lightDir,k);
@@ -145,29 +154,30 @@ Shader "Unlit/PBRStylized"
             float3 halfDir = normalize(lightDir + viewDir);
 
             half metallic = _Metallic * metalRough.a;
-            half roughness = pow(1 - _Roughness,2) ;//* metalRough.r;
+            half roughness = pow(1 - _Roughness,2); //* metalRough.r;
             
-            float nl = max(saturate(dot(normalDir,lightDir)),0.001);
-            float nv = max(saturate(dot(normalDir,viewDir)) ,0.001);
-            float hl = max(saturate(dot(halfDir,lightDir))  ,0.001);
+            float nl = max(saturate(dot(normalDir,lightDir)),0.01);
+            float nv = max(saturate(dot(normalDir,viewDir)),0.01);
+            float nh = max(saturate(dot(normalDir,halfDir)),0.01);
+            float hl = max(saturate(dot(halfDir,lightDir)),0.01);
 
+            half NdotH = max(saturate(dot(normalDir,halfDir)),0.01);
+            
             half D = Distribution(roughness,normalDir,halfDir);
             half G = Geometry(roughness,normalDir,viewDir,lightDir);
             half3 F0 = lerp(0.04,albedo.rgb, metallic);
             half3 F = FresnelEquation(F0,lightDir,halfDir);
+            
+            float3 ks = F;
+            float3 kd = (1-ks) * (1-metallic);
+            half3 BRDF = (D * G * F)/(4 * nl*nv);
 
-            half3 SpecularResult = D*G*F/(nv * nl * 4);
+            half3 DirectSpeColor = BRDF * lightColor.rgb * nl * PI * albedo;
             
-
+            float3 DirectDiffColor = kd * albedo.rgb * lightColor.rgb * nl;
+            float3 DirectResult = DirectSpeColor + DirectDiffColor;
             
-            half3 DirectSpeColr = saturate(SpecularResult * nl * PI);
-
-            half3 ks = F;
-            half3 kd = (1 - ks) * (1 - metallic);
-            half3 DirectDiffColor = kd * albedo * nl * lightColor;
-            
-            
-            return G;
+            return float4(DirectResult,1);
         }
         
         ENDHLSL

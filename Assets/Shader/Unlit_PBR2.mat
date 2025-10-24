@@ -37,8 +37,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Metallic: 0
-    - _NormalScale: 1
+    - _Metallic: 0.5
+    - _NormalScale: 2.3
     - _Roughness: 1
     m_Colors:
     - _DiffuseColor: {r: 1, g: 1, b: 1, a: 1}

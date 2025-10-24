@@ -185,7 +185,6 @@
         half3 ks = F;
         half3 kd = (1- ks) * (1 - metal);                   // 计算kd
 
-
         half3 SpecularResult = (D * G * F) / (nv * nl * 4);
 
         half3 DirectSpeColor = saturate(SpecularResult * lightColor.rgb * nl * PI );
