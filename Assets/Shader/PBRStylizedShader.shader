@@ -24,7 +24,7 @@ Shader "Unlit/PBRStylized"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
-        #include "Assets/_Test/PBR/PbrData.hlsl"
+        //#include "Assets/_Test/PBR/PbrData.hlsl"
 
         CBUFFER_START(UnityPerMaterial)
             float4 _DiffuseTex_ST;  float4 _DiffuseColor;
@@ -136,6 +136,41 @@ Shader "Unlit/PBRStylized"
             return G;
         }
 
+        //球型光照，获取球协函数的光照信息
+        float SH_IndirectionDiff(float3 normalWS)
+        {
+            real4 SHCoefficients[7];
+            SHCoefficients[0] = unity_SHAr;
+            SHCoefficients[1] = unity_SHAg;
+            SHCoefficients[2] = unity_SHAb;
+            SHCoefficients[3] = unity_SHBr;
+            SHCoefficients[4] = unity_SHBg;
+            SHCoefficients[5] = unity_SHBb;
+            SHCoefficients[6] = unity_SHC;
+            float3 SHColor = SampleSH9(SHCoefficients,normalWS);
+            return max(0,SHColor);
+        }
+
+        float3 IndirF_Fuction(float NdotV ,float3 F0, float roughness)
+        {
+            float Fre = exp2((-5.55473 * NdotV - 6.98316) * NdotV);
+            return F0 + Fre * saturate(1 - roughness - F0);
+        }
+
+        real3 IndirectSpeCube(float3 normalWS, float3 viewWS,float roughness,float AO)
+        {
+            float3 reflectDirWS = reflect(-viewWS,normalWS);
+            roughness = roughness * (1.7 - 0.7 * roughness);
+            float MidLevel = roughness * 6;
+            float4 speColor = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0,samplerunity_SpecCube0,reflectDirWS,MidLevel);
+            
+            #if !defined(UNITY_USE_NATIVE_HDR)
+                return DecodeHDREnvironment(speColor,unity_SpecCube0_HDR) * AO;
+            #else
+                return speColor.xyz * AO; 
+            #endif
+        }
+
         half4 frag(Varying i) : SV_Target
         {
             half4 albedo = SAMPLE_TEXTURE2D(_DiffuseTex,sampler_DiffuseTex,i.uv);
@@ -153,6 +188,7 @@ Shader "Unlit/PBRStylized"
             float3 lightDir = mainLight.direction;
             float3 halfDir = normalize(lightDir + viewDir);
 
+            //BRDF
             half metallic = _Metallic * metalRough.a;
             half roughness = pow(1 - _Roughness,2); //* metalRough.r;
             
@@ -176,8 +212,18 @@ Shader "Unlit/PBRStylized"
             
             float3 DirectDiffColor = kd * albedo.rgb * lightColor.rgb * nl;
             float3 DirectResult = DirectSpeColor + DirectDiffColor;
+
+            //Enviroment
+            half3 shColor = SH_IndirectionDiff(N);
+            half3 indirect_ks = IndirF_Fuction(nv,F0,roughness);
+            half3 indirect_kd = (1 - indirect_ks) * (1 - metallic);
+            half3 indirectDiffColor = shColor * indirect_kd * albedo;
+
+            half3 indirectSpeCubeColor = IndirectSpeCube(N,viewDir,roughness,1.0);
+
+            return float4(indirectSpeCubeColor.rgb,1);
             
-            return float4(DirectResult,1);
+            //return float4(DirectResult,1);
         }
         
         ENDHLSL

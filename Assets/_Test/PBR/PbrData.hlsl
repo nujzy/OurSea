@@ -183,7 +183,7 @@
         half3 F = FresnelEquation(F0,hl);
 
         half3 ks = F;
-        half3 kd = (1- ks) * (1 - metal);                   // 计算kd
+        half3 kd = (1- ks) * (1 - metal);   // 计算kd
 
         half3 SpecularResult = (D * G * F) / (nv * nl * 4);
 
