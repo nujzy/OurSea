@@ -22,6 +22,7 @@ Shader "Unlit/PBRStylized"
         HLSLINCLUDE
 
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/BRDF.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
         //#include "Assets/_Test/PBR/PbrData.hlsl"
@@ -137,7 +138,7 @@ Shader "Unlit/PBRStylized"
         }
 
         //球型光照，获取球协函数的光照信息
-        float SH_IndirectionDiff(float3 normalWS)
+        float3 SH_IndirectionDiff(float3 normalWS)
         {
             real4 SHCoefficients[7];
             SHCoefficients[0] = unity_SHAr;
@@ -147,8 +148,8 @@ Shader "Unlit/PBRStylized"
             SHCoefficients[4] = unity_SHBg;
             SHCoefficients[5] = unity_SHBb;
             SHCoefficients[6] = unity_SHC;
-            float3 SHColor = SampleSH9(SHCoefficients,normalWS);
-            return max(0,SHColor);
+            float3 color = SampleSH9(SHCoefficients,normalWS);
+            return max(0,color);
         }
 
         float3 IndirF_Fuction(float NdotV ,float3 F0, float roughness)
@@ -214,14 +215,14 @@ Shader "Unlit/PBRStylized"
             float3 DirectResult = DirectSpeColor + DirectDiffColor;
 
             //Enviroment
-            half3 shColor = SH_IndirectionDiff(N);
+            half3 shColor = SH_IndirectionDiff(normalDir);
             half3 indirect_ks = IndirF_Fuction(nv,F0,roughness);
             half3 indirect_kd = (1 - indirect_ks) * (1 - metallic);
             half3 indirectDiffColor = shColor * indirect_kd * albedo;
 
             half3 indirectSpeCubeColor = IndirectSpeCube(N,viewDir,roughness,1.0);
-
-            return float4(indirectSpeCubeColor.rgb,1);
+            
+            return float4(indirectDiffColor.rgb,1);
             
             //return float4(DirectResult,1);
         }

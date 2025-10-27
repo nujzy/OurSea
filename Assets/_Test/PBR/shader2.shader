@@ -167,7 +167,6 @@ Shader "URP/PBR"
                 return max(0, Color);
             }
 
-
             v2f vert(appdata v)
             {
                 v2f o;
