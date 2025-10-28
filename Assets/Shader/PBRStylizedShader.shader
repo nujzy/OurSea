@@ -219,8 +219,7 @@ Shader "Unlit/PBRStylized"
             half3 indirect_ks = IndirF_Fuction(nv,F0,roughness);
             half3 indirect_kd = (1 - indirect_ks) * (1 - metallic);
             half3 indirectDiffColor = shColor * indirect_kd * albedo;
-
-            half3 indirectSpeCubeColor = IndirectSpeCube(N,viewDir,roughness,1.0);
+            
             
             return float4(indirectDiffColor.rgb,1);
             
