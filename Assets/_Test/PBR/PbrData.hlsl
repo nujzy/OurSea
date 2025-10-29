@@ -82,7 +82,7 @@
         //用DecodeHDREnvironment将颜色从HDR编码下解码。可以看到采样出的rgbm是一个4通道的值，
         //最后一个m存的是一个参数，解码时将前三个通道表示的颜色乘上xM^y，x和y都是由环境贴图定义的系数，
         //存储在unity_SpecCube0_HDR这个结构中
-        return DecodeHDREnvironment(speColor,unity_SpecCube0_HDR) * AO;
+        return DecodeHDREnvironment(speColor,1) * AO;
         
         #endif
 

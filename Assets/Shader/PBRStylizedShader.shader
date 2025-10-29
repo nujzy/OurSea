@@ -11,6 +11,8 @@ Shader "Unlit/PBRStylized"
         [NoScaleOffset] _MRTex("Metallic Map",2D) = "white"{}
         _Metallic("Metallic",Float) = 0
         _Roughness("Roughness",Float) = 1
+        
+        _CubeMapTex("CubeMap",Cube) = "_Skybox"{}
     }
     SubShader
     {
@@ -23,6 +25,7 @@ Shader "Unlit/PBRStylized"
 
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/BRDF.hlsl"
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
         //#include "Assets/_Test/PBR/PbrData.hlsl"
@@ -109,7 +112,7 @@ Shader "Unlit/PBRStylized"
         }
 
         //几何遮蔽子项
-        float G_sub(float3 normalDir,float3 anotherDir,float k)
+        inline float G_sub(float3 normalDir,float3 anotherDir,float k)
         {
             float dotProduct = dot(normalDir,anotherDir);
             dotProduct = max(dotProduct,0);
@@ -138,7 +141,7 @@ Shader "Unlit/PBRStylized"
         }
 
         //球型光照，获取球协函数的光照信息
-        float3 SH_IndirectionDiff(float3 normalWS)
+        float3 SH_IndirectionDiffuse(float3 normalWS)
         {
             real4 SHCoefficients[7];
             SHCoefficients[0] = unity_SHAr;
@@ -158,23 +161,42 @@ Shader "Unlit/PBRStylized"
             return F0 + Fre * saturate(1 - roughness - F0);
         }
 
-        real3 IndirectSpeCube(float3 normalWS, float3 viewWS,float roughness,float AO)
+        real3 IndirectSpeCube(float3 normalWS, float3 viewWS,float  roughness,float AO)
         {
             float3 reflectDirWS = reflect(-viewWS,normalWS);
             roughness = roughness * (1.7 - 0.7 * roughness);
             float MidLevel = roughness * 6;
             float4 speColor = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0,samplerunity_SpecCube0,reflectDirWS,MidLevel);
-            
             #if !defined(UNITY_USE_NATIVE_HDR)
-                return DecodeHDREnvironment(speColor,unity_SpecCube0_HDR) * AO;
+                return DecodeHDREnvironment(speColor,1) * AO;
             #else
                 return speColor.xyz * AO; 
             #endif
         }
 
+        half3 IndirectSpeFactor(half roughness,half smoothness,half3 BRDFspe,half F0,half NdotV)
+        {
+            #ifdef UNITY_COLORSPACE_GAMMA
+                half SurReduction = 1 - 0.28 * roughness * roughness;
+            #else
+                half SurReduction = 1 / (roughness * roughness + 1);
+            #endif
+
+            #if defined(SHADER_API_GLES)
+                half Reflectivity = BRDFspe.x;
+            #else
+                half Reflectivity = max(max(BRDFspe.x,BRDFspe.y),BRDFspe.z);
+            #endif
+
+            half GrazingTSection = saturate(Reflectivity + SurReduction);
+            half fre = Pow4(1 - NdotV);
+
+            return lerp(F0,GrazingTSection,fre) * SurReduction;
+        }
+
         half4 frag(Varying i) : SV_Target
         {
-            half4 albedo = SAMPLE_TEXTURE2D(_DiffuseTex,sampler_DiffuseTex,i.uv);
+            half4 albedo = SAMPLE_TEXTURE2D(_DiffuseTex,sampler_DiffuseTex,i.uv) * _DiffuseColor;
             half4 normal = SAMPLE_TEXTURE2D(_NormalTex,sampler_NormalTex,i.uv);
             half4 metalRough = SAMPLE_TEXTURE2D(_MRTex,sampler_MRTex,i.uv);
             
@@ -191,7 +213,8 @@ Shader "Unlit/PBRStylized"
 
             //BRDF
             half metallic = _Metallic * metalRough.a;
-            half roughness = pow(1 - _Roughness,2); //* metalRough.r;
+            half smoothness = _Roughness;
+            half roughness = pow(1 - _Roughness,2) * metalRough.r;
             
             float nl = max(saturate(dot(normalDir,lightDir)),0.01);
             float nv = max(saturate(dot(normalDir,viewDir)),0.01);
@@ -215,15 +238,18 @@ Shader "Unlit/PBRStylized"
             float3 DirectResult = DirectSpeColor + DirectDiffColor;
 
             //Enviroment
-            half3 shColor = SH_IndirectionDiff(normalDir);
+                //SH
+            half3 shColor = SH_IndirectionDiffuse(normalDir);
             half3 indirect_ks = IndirF_Fuction(nv,F0,roughness);
             half3 indirect_kd = (1 - indirect_ks) * (1 - metallic);
             half3 indirectDiffColor = shColor * indirect_kd * albedo;
+                //Reflect
+            half3 IndirectSpeCubeColor = IndirectSpeCube(normalDir,viewDir,roughness,1);
+            half3 IndirectSpeCubeFactor = IndirectSpeFactor(roughness,smoothness,DirectSpeColor,F0,nv);
+            half3 IndirectSpeColor = IndirectSpeCubeColor * IndirectSpeCubeFactor;
+            half3 IndirectColor = IndirectSpeColor + indirectDiffColor;
             
-            
-            return float4(indirectDiffColor.rgb,1);
-            
-            //return float4(DirectResult,1);
+            return float4(DirectResult + IndirectColor,1);
         }
         
         ENDHLSL
