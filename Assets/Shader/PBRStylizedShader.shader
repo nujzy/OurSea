@@ -9,8 +9,8 @@ Shader "Unlit/PBRStylized"
         _NormalScale("Normal Scale",Float) = 1
         
         [NoScaleOffset] _MRTex("Metallic Map",2D) = "white"{}
-        _Metallic("Metallic",Float) = 0
-        _Roughness("Roughness",Float) = 1
+        _Metallic("Metallic",Range(0,1)) = 0
+        _Roughness("Roughness",Range(0,1)) = 1
         
         _CubeMapTex("CubeMap",Cube) = "_Skybox"{}
     }
@@ -188,7 +188,7 @@ Shader "Unlit/PBRStylized"
                 half Reflectivity = max(max(BRDFspe.x,BRDFspe.y),BRDFspe.z);
             #endif
 
-            half GrazingTSection = saturate(Reflectivity + SurReduction);
+            half GrazingTSection = saturate(Reflectivity + smoothness);
             half fre = Pow4(1 - NdotV);
 
             return lerp(F0,GrazingTSection,fre) * SurReduction;
@@ -248,8 +248,10 @@ Shader "Unlit/PBRStylized"
             half3 IndirectSpeCubeFactor = IndirectSpeFactor(roughness,smoothness,DirectSpeColor,F0,nv);
             half3 IndirectSpeColor = IndirectSpeCubeColor * IndirectSpeCubeFactor;
             half3 IndirectColor = IndirectSpeColor + indirectDiffColor;
+
+            half3 ResultColor = DirectResult;// + IndirectColor;
             
-            return float4(DirectResult + IndirectColor,1);
+            return float4(ResultColor,1);
         }
         
         ENDHLSL
