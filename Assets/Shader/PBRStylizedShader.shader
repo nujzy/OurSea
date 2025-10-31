@@ -103,14 +103,6 @@ Shader "Unlit/PBRStylized"
             return D;
         }
 
-        //菲涅耳函数
-        float3 FresnelEquation(float3 f0,float3 lightDir ,float3 halfDir)
-        {
-            float hl = max(saturate(dot(halfDir, lightDir)), 0.0001);
-            float3 F = f0 + (1 - f0) * exp2((-5.55473 * hl - 6.98316) * hl);
-            return F;
-        }
-
         //几何遮蔽子项
         inline float G_sub(float3 normalDir,float3 anotherDir,float k)
         {
@@ -140,6 +132,14 @@ Shader "Unlit/PBRStylized"
             return G;
         }
 
+        //菲涅耳函数
+        float3 FresnelEquation(float3 f0,float3 lightDir ,float3 halfDir)
+        {
+            float hl = max(saturate(dot(halfDir, lightDir)), 0.0001);
+            float3 F = f0 + (1 - f0) * exp2((-5.55473 * hl - 6.98316) * hl);
+            return F;
+        }
+
         //球型光照，获取球协函数的光照信息
         float3 SH_IndirectionDiffuse(float3 normalWS)
         {
@@ -155,13 +155,14 @@ Shader "Unlit/PBRStylized"
             return max(0,color);
         }
 
+        //间接光菲涅耳
         float3 IndirF_Fuction(float NdotV ,float3 F0, float roughness)
         {
             float Fre = exp2((-5.55473 * NdotV - 6.98316) * NdotV);
             return F0 + Fre * saturate(1 - roughness - F0);
         }
 
-        real3 IndirectSpeCube(float3 normalWS, float3 viewWS,float  roughness,float AO)
+        real3 IndirectSpeCube(float3 normalWS, float3 viewWS,float roughness,float AO)
         {
             float3 reflectDirWS = reflect(-viewWS,normalWS);
             roughness = roughness * (1.7 - 0.7 * roughness);
@@ -174,7 +175,7 @@ Shader "Unlit/PBRStylized"
             #endif
         }
 
-        half3 IndirectSpeFactor(half roughness,half smoothness,half3 BRDFspe,half F0,half NdotV)
+        real3 IndirectSpeFactor(half roughness,half smoothness,half3 BRDFspe,half3 F0,half NdotV)
         {
             #ifdef UNITY_COLORSPACE_GAMMA
                 half SurReduction = 1 - 0.28 * roughness * roughness;
@@ -212,9 +213,9 @@ Shader "Unlit/PBRStylized"
             float3 halfDir = normalize(lightDir + viewDir);
 
             //BRDF
-            half metallic = _Metallic * metalRough.a;
-            half smoothness = _Roughness;
-            half roughness = pow(1 - _Roughness,2) * metalRough.r;
+            half metallic = _Metallic * metalRough.r;
+            half smoothness = _Roughness * metalRough.a;
+            half roughness = pow(1 - smoothness,2);
             
             float nl = max(saturate(dot(normalDir,lightDir)),0.01);
             float nv = max(saturate(dot(normalDir,viewDir)),0.01);
@@ -249,9 +250,10 @@ Shader "Unlit/PBRStylized"
             half3 IndirectSpeColor = IndirectSpeCubeColor * IndirectSpeCubeFactor;
             half3 IndirectColor = IndirectSpeColor + indirectDiffColor;
 
-            half3 ResultColor = DirectResult;// + IndirectColor;
-            
+            half3 ResultColor = DirectResult + IndirectColor;
+
             return float4(ResultColor,1);
+            //return float4(ResultColor,1);
         }
         
         ENDHLSL
