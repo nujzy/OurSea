@@ -23,41 +23,46 @@ Shader "Unlit/PBRStylized"
         }
         HLSLINCLUDE
 
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/BRDF.hlsl"
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
-        //#include "Assets/_Test/PBR/PbrData.hlsl"
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BLENDING
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
+            #pragma multi_compile_fragment _ _REFLECTION_PROBE_ATLAS 
 
-        CBUFFER_START(UnityPerMaterial)
-            float4 _DiffuseTex_ST;  float4 _DiffuseColor;
-            float4 _NormalTex_ST;   float _NormalScale;
-            float4 _MRTex_ST;       float _Metallic;    float _Roughness;
-        CBUFFER_END
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/BRDF.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            //#include "Assets/_Test/PBR/PbrData.hlsl"
 
-        TEXTURE2D(_DiffuseTex);     SAMPLER(sampler_DiffuseTex);
-        TEXTURE2D(_NormalTex);      SAMPLER(sampler_NormalTex);
-        TEXTURE2D(_MRTex);          SAMPLER(sampler_MRTex);
+            CBUFFER_START(UnityPerMaterial)
+                float4 _DiffuseTex_ST;  float4 _DiffuseColor;
+                float4 _NormalTex_ST;   float _NormalScale;
+                float4 _MRTex_ST;       float _Metallic;    float _Roughness;
+            CBUFFER_END
+
+            TEXTURE2D(_DiffuseTex);     SAMPLER(sampler_DiffuseTex);
+            TEXTURE2D(_NormalTex);      SAMPLER(sampler_NormalTex);
+            TEXTURE2D(_MRTex);          SAMPLER(sampler_MRTex);
+            
+            struct Attribute
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                float2 texcoord : TEXCOORD0;
+                float4 tangentOS : TANGENT;
+            };
+
+            struct Varying
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
+                float3 normalWS : TEXCOORD2;
+                float3 tangetWS : TEXCOORD3;
+                float3 bitTangetWS : TEXCOORD4;
+                float3 viewDirWS : TEXCOORD5;
+            };
         
-        struct Attribute
-        {
-            float4 positionOS : POSITION;
-            float3 normalOS : NORMAL;
-            float2 texcoord : TEXCOORD0;
-            float4 tangentOS : TANGENT;
-        };
-
-        struct Varying
-        {
-            float4 positionCS : SV_POSITION;
-            float2 uv : TEXCOORD0;
-            float3 positionWS : TEXCOORD1;
-            float3 normalWS : TEXCOORD2;
-            float3 tangetWS : TEXCOORD3;
-            float3 bitTangetWS : TEXCOORD4;
-            float3 viewDirWS : TEXCOORD5;
-        };
         ENDHLSL
 
         Pass
@@ -169,7 +174,7 @@ Shader "Unlit/PBRStylized"
             float MidLevel = roughness * 6;
             float4 speColor = SAMPLE_TEXTURECUBE_LOD(unity_SpecCube0,samplerunity_SpecCube0,reflectDirWS,MidLevel);
             #if !defined(UNITY_USE_NATIVE_HDR)
-                return DecodeHDREnvironment(speColor,1) * AO;
+                return DecodeHDREnvironment(speColor,unity_SpecCube0_HDR) * AO;
             #else
                 return speColor.xyz * AO; 
             #endif
